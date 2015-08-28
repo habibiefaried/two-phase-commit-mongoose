@@ -1,0 +1,81 @@
+cara kerja two phase commit untuk Atomicity dan Consistency:
+
+1) Input ke method Transaction.do([task1, task2]) dengan setiap Task itu berupa
+	1.1) Kalau insert
+	{
+		collection: <nama_collection>,
+		act: insert,
+		data: <data dalam json / tipedata>,
+	}
+
+	1.2) Kalau update
+	{
+		collection: <nama_collection>,
+		act: update,
+		data: <data dalam json/tipedata>,
+		Id: ObjectID dari data yang akan diupdate
+	}
+
+	1.3) Kalau remove
+	{
+		collection: <nama_collection>,
+		act: delete,
+		Id: ObjectID dari data yang akan dihapus
+	}
+
+2) Akan masuk ke collection 2pc_transaction dengan struktur. setelah itu dapatkan _id dari hasil insert dan update ke status INITIAL
+	[
+		tasks: [ {
+			collection: ...
+			act: ...
+			Id: ...
+			data: ...
+			status: <INIT, SUCCESS, ERROR, CANCELLED>
+			undo_task_id : ObjectID (masih kosong)
+		}
+		],
+		status: <INITIAL, PENDING, DONE, CANCELLED, ROLLBACKED>,
+		information: String,
+		created_at: Date,
+		updated_at: Date,
+	]
+
+3) Update state menjadi pending. Lakukan operasi dari awal task hingga akhir. Setiap task yang berhasil, maka dimasukkan kedalam collection undo_task_log dengan struktur pada (3.x), setelah insert, maka _id nya diambil dan dimasukkan kedalam undo_task_id. row 2pc_transaction.tasks dengan status "SUCCESS". Dan juga dimasukkan ke task dengan status_tasknya SUCCESS
+	3.1) Kalau operasi insert,
+		 {
+		 	collection: ...
+		 	act: delete,
+		 	Id: <ObjectID> dari transaksi insert yang dimasukkan
+		 }
+
+	3.2) Kalau operasi update
+		{
+			collection: ...
+			act: rollback
+			Id: <ObjectID> dari transaksi update yang terjadi
+			data: Data SEBELUM update dilakukan
+		}
+
+	3.3) Kalau operasi delete,
+		{
+			collection: ...
+			act: insert,
+			Id: <ObjectID> dari row yang didelete
+			data: Data SEBELUM dihapus
+		}
+
+4) Apabila operasi gagal ditengah, maka harus dilakukan rollback. 2pc_transaction pada row tersebut akan diubah ke mode "CANCELLED". Selain itu, id_task akan berubah menjadi "ERROR"
+
+5) Apabila seluruh operasi berhasil, maka transaction berstatus DONE. akan ada cronjob yang memproses data2 ini lebih lanjut
+
+6) Apabila operasi gagal karena sesuatu yang bisa dihandle program (misalkan data/parameter error). maka akan dilakukan rollback terhadap task sebelumnya. task sebelumnya memiliki data rollback yang ada pada undo_task_log. Setiap rollback yang berhasil, maka kasih status "CANCELLED"
+
+7) Apabila rollback berhasil, maka row tersebut akan berubah ke mode "ROLLBACKED"
+
+8) Apabila operasi gagal karena sesuatu yang membuat program mati (misalkan mati listrik, error yang throw). maka akan ada cron program yang mengecek seluruh log 2pc_transaction ini.
+
+Ketika cron program dijalankan, maka akan ketemu hal-hal berikut ini:
+	1) INITIAL & PENDING, lanjutkan dari task yang masih "INIT"
+	2) DONE, akan diproses selanjutnya
+	3) ROLLBACKED, akan diproses selanjutnya
+	4) CANCELLED, lakukan rollback dari task yang sudah SUCCESS. jangan lupa ubah tiap task menjadi "CANCELLED"
