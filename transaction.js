@@ -35,17 +35,16 @@ module.exports = function(mongoose, async) {
 	var trans = {};
 
 	trans.apply = function(param, callback){
+		var logger = [];
 		async.forEachSeries(param, function(e, cb) {
-			//console.log(e);
-			var logger = [];
 			if (e.act == "insert") {
-				new e.mongoose_model(e.data).save(function(err){
+				new e.mongoose_model(e.data).save(function(err, result){
 					if (err) {
 						logger.push(err);
 						cb();
 					}
 					else {
-						logger.push("Berhasil");
+						logger.push("Sukses dimasukkan: "+result._id);
 						cb();
 					}	
 				});
@@ -57,20 +56,20 @@ module.exports = function(mongoose, async) {
 						cb();
 					}
 					else {
-						logger.push("Updated\n"+result) //previous data before update
+						logger.push("Terupdate\n"+result) //previous data before update
 						cb();
 					}
 				});
 			} else if (e.act == "delete") {
 				e.mongoose_model.findOneAndRemove(e.param, function(err,result){
-					if (err) {
-						logger.push(err);
-						cb();
-					}
+					if (err) logger.push(err);
 					else {
-						logger.push("Deleted\n"+result); //ambil data yang terhapus
-						cb();
+						if (result) {
+							logger.push("Terhapus\n"+result); //ambil data yang terhapus
+							
+						} else logger.push("[ERROR] Tidak ada record yang akan dihapus");
 					}
+					cb();
 				});
 			} else {
 				logger.push("Aksi tidak ditemukan");

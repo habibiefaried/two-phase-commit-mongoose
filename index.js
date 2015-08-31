@@ -35,15 +35,24 @@ var query_update = {
 var query_delete = {
 	act: "delete",
 	param: {
-		name: "CPnpIBypXg",
+		name: "Test",
 	}, //parameter delete
 	mongoose_model: User,
 };
 
-transaction.apply([query_insert,query_delete], function(callback){	
-	console.log(callback);
+var query_delete2 = {
+	act: "delete",
+	param: {
+		name: "Testing",
+	}, //parameter delete
+	mongoose_model: User,
+};
+
+transaction.apply([query_delete,query_delete2], function(callback){	
 	User.find({}, function(err, users) {
 	  if (err) throw err;
-	  console.log(users);
+	  else console.log(users);
+	  console.log(callback); 
 	});
+
 });
