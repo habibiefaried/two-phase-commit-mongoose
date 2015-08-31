@@ -1,28 +1,36 @@
-var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/myappdatabase');
+var mongoose = require('mongoose'); mongoose.connect('mongodb://localhost/demo');
+var async = require('async');
+var transaction = require('./transaction.js')(mongoose,async);
 
-var Schema = mongoose.Schema;
-
-// create a schema
-var userSchema = new Schema({
-  id: ObjectID,
+var userSchema = new mongoose.Schema({
+  _id: Schema.ObjectId,
   name: String,
-  balance: Integer,
+  balance: Number,
 });
-
-// the schema is useless so far
-// we need to create a model using it
 var User = mongoose.model('User', userSchema);
 
-var newUser = User({
-	id : <>,
-	name: "Habibie",
-	balance: 1000
-});
 
-var newUser2 = User({
-	id: <>, 
-	name: "WP",
-	balance: 2000
-});
+var query_insert = {
+	collection: "User",
+	act: "insert",
+	data: {
+		name: "Testing",
+		balance: "900",
+	}
+	mongoose_model: User,
+};
 
+var query_update = {
+	collection: "User",
+	act: "update",
+	Id: "55e3cba74ea6565c0d11b48f",
+	data: {
+		name: "Updated",
+		balance: "1290",
+	},
+	mongoose_model: User,
+};
+
+transaction.apply([query_insert,query_update], function(callback){
+	console.log(callback);
+});
