@@ -37,11 +37,15 @@ module.exports = function(mongoose, async) {
 	trans.apply = function(param, callback){
 		async.forEachSeries(param, function(e, cb) {
 			//console.log(e);
+			var logger = [];
 			if (e.act == "insert") {
 				new e.mongoose_model(e.data).save(function(err){
-					if (err) cb(err);
+					if (err) {
+						logger.push(err);
+						cb();
+					}
 					else {
-						console.log("Berhasil");
+						logger.push("Berhasil");
 						cb();
 					}	
 				});
@@ -49,25 +53,31 @@ module.exports = function(mongoose, async) {
 			} else if (e.act == "update") {
 				e.mongoose_model.findOneAndUpdate(e.param,e.data,function(err,result){
 					if (err) {
-						cb(err);
+						logger.push(err);
+						cb();
 					}
 					else {
-						console.log("Penanda\n"+result); //previous before update
+						logger.push("Updated\n"+result) //previous data before update
 						cb();
 					}
 				});
 			} else if (e.act == "delete") {
 				e.mongoose_model.findOneAndRemove(e.param, function(err,result){
-					if (err) cb(err);
-					else console.log("Terhapus\n"+result); //ambil data yang terhapus
-					cb();
+					if (err) {
+						logger.push(err);
+						cb();
+					}
+					else {
+						logger.push("Deleted\n"+result); //ambil data yang terhapus
+						cb();
+					}
 				});
 			} else {
-				console.log("Aksi tidak ditemukan");
+				logger.push("Aksi tidak ditemukan");
 				cb();
 			}
 		}, function(){
-			callback("A");
+			callback(logger);
 		});
 	};
 

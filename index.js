@@ -40,7 +40,8 @@ var query_delete = {
 	mongoose_model: User,
 };
 
-transaction.apply([query_delete], function(callback){	
+transaction.apply([query_insert,query_delete], function(callback){	
+	console.log(callback);
 	User.find({}, function(err, users) {
 	  if (err) throw err;
 	  console.log(users);

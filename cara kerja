@@ -1,4 +1,4 @@
-cara kerja two phase commit untuk Atomicity dan Consistency:
+cara kerja two phase commit untuk Atomicity dan Consistency: (berubah)
 
 1) Input ke method Transaction.apply([task1, task2]) dengan setiap Task itu berupa
 	1.1) Kalau insert
@@ -29,10 +29,6 @@ cara kerja two phase commit untuk Atomicity dan Consistency:
 2) Akan masuk ke collection 2pc_transaction dengan struktur. setelah itu dapatkan _id dari hasil insert dan update ke status INITIAL
 	[
 		tasks: [ {
-			collection: ...
-			act: ...
-			Id: ...
-			data: ...
 			status: <INIT, SUCCESS, ERROR, CANCELLED>
 			undo_task_id : ObjectID (masih kosong)
 		}
