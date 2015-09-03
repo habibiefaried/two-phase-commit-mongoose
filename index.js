@@ -23,11 +23,10 @@ var query_insert = {
 var query_update = {
 	act: "update",
 	param: {
-		name: "qtYEJhA6w4",
+		name: "lJXOhFTfDM",
 	}, //parameter update
 	data: {
-		name: "Updatedaa1",
-		balance: "129001",
+		balance: "1290021",
 	},
 	mongoose_model: User,
 };
@@ -48,7 +47,7 @@ var query_delete2 = {
 	mongoose_model: User,
 };
 
-transaction.apply([query_delete,query_delete2], function(callback){	
+transaction.apply([query_update], function(callback){	
 	User.find({}, function(err, users) {
 	  if (err) throw err;
 	  else console.log(users);
