@@ -47,7 +47,7 @@ var query_delete2 = {
 	mongoose_model: User,
 };
 
-transaction.apply([query_insert,query_update], function(isError, id_transaction, callback){	
+transaction.apply([query_insert,query_update], function(isError, callback){	
 	User.find({}, function(err, users) {
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));

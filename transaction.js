@@ -87,21 +87,9 @@ module.exports = function(mongoose, async) {
 		})
 	}
 
-	function rollback(id_transaction, callback) {
-		ModelTrans.findOne({_id: id_transaction}, function(err, x){
-			if (err) callback(err);
-			else {
-				callback(err, x.tasks);
-			}
-		});
+	function LiveRollback(data_trans) {
+		//data transaksi setelah insert
 	}
-
-	trans.rollback = function(id_transaction, callback){
-		rollback(id_transaction, function(err, cb){
-			if (err) callback(err);
-			else callback(err, cb);
-		});
-	};
 
 	trans.apply = function(param, callback){
 		var logger = [];
@@ -115,6 +103,9 @@ module.exports = function(mongoose, async) {
 				if (e.act == "insert") {
 					new e.mongoose_model(e.data).save(function(err, result){
 						if (err) {
+							dt.tasks[nomor].status = statusTaskEnum.ERROR;
+							dt.tasks[nomor].undo_id = idx;
+							dt.save();
 							logger.push(err);
 							isError = true;
 							cb(new Error(err));
@@ -143,6 +134,9 @@ module.exports = function(mongoose, async) {
 								dt.save();
 								cb();
 							} else {
+								dt.tasks[nomor].status = statusTaskEnum.ERROR;
+								dt.tasks[nomor].undo_id = idx;
+								dt.save();
 								isError = true;
 								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
 								logger.push(msg_err);
@@ -167,6 +161,9 @@ module.exports = function(mongoose, async) {
 								cb();
 							} else {
 								isError = true;
+								dt.tasks[nomor].status = statusTaskEnum.ERROR;
+								dt.tasks[nomor].undo_id = idx;
+								dt.save();
 								var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
 								logger.push(msg_err);
 								cb(new Error(msg_err));
@@ -181,11 +178,17 @@ module.exports = function(mongoose, async) {
 				if (isError) dt.status = statusTransEnum.CANCELLED;
 				else dt.status = statusTransEnum.DONE;
 				dt.save();
-				ModelUndo.find({}, function(err,d){
-					console.log("Trans: "+JSON.stringify(dt, null, 2));
-					console.log("Undo: "+JSON.stringify(d, null, 2));
-					callback(isError, dt._id, logger);
-				}); 
+				console.log("Trans: "+JSON.stringify(dt, null, 2));
+
+				var hasil = {};
+				hasil.normal = logger;
+
+				if (!isError) hasil.rollback = "";
+				else {
+
+				}
+				
+				callback(isError, hasil); 
 			});
 		});
 	};
