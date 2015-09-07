@@ -14,7 +14,7 @@ var query_insert = {
 	act: "insert",
 	data: {
 		_id: mongoose.Types.ObjectId(),
-		name: randomstring.generate(10),
+		name: "Habibie",
 		balance: "10000",
 	},
 	mongoose_model: User,
@@ -34,7 +34,7 @@ var query_update = {
 var query_delete = {
 	act: "delete",
 	param: {
-		name: "Test",
+		name: "Habibie",
 	}, //parameter delete
 	mongoose_model: User,
 };
@@ -47,11 +47,18 @@ var query_delete2 = {
 	mongoose_model: User,
 };
 
-transaction.apply([query_update], function(callback){	
+transaction.apply([query_insert,query_update], function(isError, id_transaction, callback){	
 	User.find({}, function(err, users) {
-	  if (err) throw err;
-	  else console.log(users);
-	  console.log(callback); 
+		if (err) throw err;
+	  	else console.log("User: "+JSON.stringify(users, null, 2));
+	  	console.log("RESP: "+JSON.stringify(callback, null, 2));
+	  	/*
+		transaction.rollback(id_transaction,function(err,cb){
+			console.log(JSON.stringify(cb, null, 2));	
+			
+		}); */
+		mongoose.connection.db.dropDatabase();
 	});
-
 });
+
+

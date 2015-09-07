@@ -2,7 +2,6 @@
 
 module.exports = function(mongoose, async) {
 	var statusTransEnum = Object.freeze({
-		INITIAL: 0,
 		PENDING: 1,
 		DONE: 2,
 		CANCELLED: 3,
@@ -62,9 +61,10 @@ module.exports = function(mongoose, async) {
 		//@return transaction_id
 		//masih init
 		var obj_transaction = {};
-		obj_transaction._id = mongoose.Types.ObjectId();
+		//obj_transaction._id = mongoose.Types.ObjectId();
+		obj_transaction._id = new mongoose.Types.ObjectId("55ed21debba7a6a763135df7");
 		obj_transaction.tasks = [];
-		obj_transaction.status = statusTransEnum.INITIAL;
+		obj_transaction.status = statusTransEnum.PENDING;
 		obj_transaction.information = information;
 		obj_transaction.created_at = new Date();
 		obj_transaction.updated_at = new Date();
@@ -78,67 +78,103 @@ module.exports = function(mongoose, async) {
 			task.data = param[i].data;
 			task.param = param[i].param;
 			obj_transaction.tasks.push(task);
-		}
-
+		} 
 		//sync, masukin tasknya
 		new ModelTrans(obj_transaction).save();
 		return obj_transaction._id;
 	}
 
+	function rollback(id_transaction, callback) {
+		ModelTrans.findOne({_id: id_transaction}, function(err, x){
+			if (err) callback(err);
+			else {
+				callback(err, x.tasks);
+			}
+		});
+	}
+
+	trans.rollback = function(id_transaction, callback){
+		rollback(id_transaction, function(err, cb){
+			if (err) callback(err);
+			else callback(err, cb);
+		});
+	};
+
 	trans.apply = function(param, callback){
 		var logger = [];
 		var obj_transaction = {};
 		var id_transaction = createInitTransaction("No Information", param);
+		var nomor = 0;
+		var isError = false; //awalnya false
 
 		async.forEachSeries(param, function(e, cb) {
+			nomor++;
 			if (e.act == "insert") {
 				new e.mongoose_model(e.data).save(function(err, result){
 					if (err) {
 						logger.push(err);
-						cb();
+						isError = true;
+						cb(new Error(err));
 					}
 					else {
 						logger.push("Sukses dimasukkan: "+result._id);
-						insertUndoTaskLog(e.mongoose_model, "delete", null, result._id);
+						var idx = insertUndoTaskLog(e.mongoose_model, "delete", null, result._id);
 						cb();
 					}	
 				});
-				//cb();
 			} else if (e.act == "update") {
 				e.mongoose_model.findOneAndUpdate(e.param,e.data,function(err,result){
 					if (err) {
 						logger.push(err);
-						cb();
+						isError = true;
+						cb(new Error(err));
 					}
 					else {
-						insertUndoTaskLog(e.mongoose_model, "update", result, result._id);
-						logger.push("Terupdate\n"+result); //previous data before update
-						cb();
+						if (result) {
+							var idx = insertUndoTaskLog(e.mongoose_model, "update", result, result._id);
+							cb();
+						} else {
+							isError = true;
+							var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
+							logger.push(msg_err);
+							cb(new Error(msg_err));
+						}
+						
 					}
 				});
 			} else if (e.act == "delete") {
 				e.mongoose_model.findOneAndRemove(e.param, function(err,result){
-					if (err) logger.push(err);
+					if (err) {
+						logger.push(err);
+						isError = true;
+						cb(new Error(err));
+					}
 					else {
 						if (result) {
-							insertUndoTaskLog(e.mongoose_model, "insert", result, null);
-							logger.push("Terhapus\n"+result); //ambil data yang terhapus
-						} else logger.push("[ERROR] Tidak ada record yang akan dihapus");
+							var idx = insertUndoTaskLog(e.mongoose_model, "insert", result, null);
+							cb();
+						} else {
+							isError = true;
+							var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
+							logger.push(msg_err);
+							cb(new Error(msg_err));
+						}
 					}
-					cb();
 				});
 			} else {
 				logger.push("Aksi tidak ditemukan");
 				cb();
 			}
 		}, function(){
-			ModelTrans.find({}, function(err, d){
-				console.log(d);
-			});
-
-			ModelUndo.find({}, function(err, mm){
-				console.log(mm);
-				callback(logger);
+			ModelTrans.findOne({_id: id_transaction}, function(err, x) {
+				if (isError) x.status = statusTransEnum.CANCELLED;
+				else x.status = statusTransEnum.DONE;
+				x.save();
+				ModelUndo.find({}, function(err,d){
+					console.log("Trans: "+JSON.stringify(x, null, 2));
+					console.log("Undo: "+JSON.stringify(d, null, 2));
+					callback(isError, id_transaction, logger);
+				});
 			});
 		});
 	};
