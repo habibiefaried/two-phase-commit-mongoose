@@ -39,25 +39,56 @@ module.exports = function(mongoose, async) {
 		dbase: Object, //collections
 		act: String,
 		data: Object, //khusus delete bernilai null
+		params: Object,
 		ID: mongoose.Schema.ObjectId,
 	});
 	var ModelUndo = mongoose.model('undo_task_log', undo_task_log);
 
 	var trans = {};
 
-	function insertUndoTaskLog(mongoose_model, act, data, information_id){
+	function insertUndoTaskLog(mongoose_model, act, data, params, information_id){
 		/*
 		var obj = {};
 		obj._id = mongoose.Types.ObjectId();
 		obj.dbase = mongoose_model;
 		obj.act = act;
 		obj.data = data;
+		obj.params = params;
 		obj.ID = information_id;
-		new ModelUndo(obj).save(); */
+		new ModelUndo(obj).save(); 
+		return obj._id;
+		*/
+	}
+
+	function createInitTransaction(information) {
+		//@return transaction_id
+		//masih init
+		var obj_transaction = {};
+		obj_transaction._id = mongoose.Types.ObjectId();
+		obj_transaction.tasks = [];
+		obj_transaction.status = statusTransEnum.INITIAL;
+		obj_transaction.information = information;
+		obj_transaction.created_at = new Date();
+		obj_transaction.updated_at = new Date();
+		new ModelTrans(obj_transaction).save();
+		return obj_transaction._id;
+	}
+
+	function addTransactionTask(mongoose_model, act, data, information_id, status, transaction_id, undo_id, callback){
+		var trans_task = {};
+		trans_task.status = status;
+		trans_task.undo_id = undo_id;
+		trans_task.dbase = mongoose_model;
+		trans_task.act = act;
+		trans_task.data = data;
+		trans_tas.
 	}
 
 	trans.apply = function(param, callback){
 		var logger = [];
+		var obj_transaction = {};
+		var id_transaction = createInitTransaction("No Information");
+
 		async.forEachSeries(param, function(e, cb) {
 			if (e.act == "insert") {
 				new e.mongoose_model(e.data).save(function(err, result){

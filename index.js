@@ -22,7 +22,7 @@ var query_insert = {
 
 var query_update = {
 	act: "update",
-	param: {
+	param: { //ini parameter and, bukan OR
 		name: "lJXOhFTfDM",
 	}, //parameter update
 	data: {
