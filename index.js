@@ -52,12 +52,8 @@ transaction.apply([query_insert,query_update], function(isError, id_transaction,
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));
 	  	console.log("RESP: "+JSON.stringify(callback, null, 2));
-	  	/*
-		transaction.rollback(id_transaction,function(err,cb){
-			console.log(JSON.stringify(cb, null, 2));	
-			
-		}); */
 		mongoose.connection.db.dropDatabase();
+		mongoose.connection.db.close();
 	});
 });
 

@@ -57,12 +57,12 @@ module.exports = function(mongoose, async) {
 		
 	}
 
-	function createInitTransaction(information, param) {
+	function createInitTransaction(information, param, callback) {
 		//@return transaction_id
 		//masih init
 		var obj_transaction = {};
 		//obj_transaction._id = mongoose.Types.ObjectId();
-		obj_transaction._id = new mongoose.Types.ObjectId("55ed21debba7a6a763135df7");
+		obj_transaction._id = new mongoose.Types.ObjectId();
 		obj_transaction.tasks = [];
 		obj_transaction.status = statusTransEnum.PENDING;
 		obj_transaction.information = information;
@@ -79,9 +79,12 @@ module.exports = function(mongoose, async) {
 			task.param = param[i].param;
 			obj_transaction.tasks.push(task);
 		} 
-		//sync, masukin tasknya
-		new ModelTrans(obj_transaction).save();
-		return obj_transaction._id;
+
+		var instance = new ModelTrans(obj_transaction);
+		instance.save(function(err){
+			if (err) callback(err);
+			else callback(null,instance);
+		})
 	}
 
 	function rollback(id_transaction, callback) {
@@ -103,78 +106,86 @@ module.exports = function(mongoose, async) {
 	trans.apply = function(param, callback){
 		var logger = [];
 		var obj_transaction = {};
-		var id_transaction = createInitTransaction("No Information", param);
-		var nomor = 0;
-		var isError = false; //awalnya false
+		createInitTransaction("No Information", param, function(err, dt){
+			var nomor = -1;
+			var isError = false; //awalnya false
 
-		async.forEachSeries(param, function(e, cb) {
-			nomor++;
-			if (e.act == "insert") {
-				new e.mongoose_model(e.data).save(function(err, result){
-					if (err) {
-						logger.push(err);
-						isError = true;
-						cb(new Error(err));
-					}
-					else {
-						logger.push("Sukses dimasukkan: "+result._id);
-						var idx = insertUndoTaskLog(e.mongoose_model, "delete", null, result._id);
-						cb();
-					}	
-				});
-			} else if (e.act == "update") {
-				e.mongoose_model.findOneAndUpdate(e.param,e.data,function(err,result){
-					if (err) {
-						logger.push(err);
-						isError = true;
-						cb(new Error(err));
-					}
-					else {
-						if (result) {
-							var idx = insertUndoTaskLog(e.mongoose_model, "update", result, result._id);
-							cb();
-						} else {
+			async.forEachSeries(param, function(e, cb) {
+				nomor++;
+				if (e.act == "insert") {
+					new e.mongoose_model(e.data).save(function(err, result){
+						if (err) {
+							logger.push(err);
 							isError = true;
-							var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
-							logger.push(msg_err);
-							cb(new Error(msg_err));
+							cb(new Error(err));
 						}
-						
-					}
-				});
-			} else if (e.act == "delete") {
-				e.mongoose_model.findOneAndRemove(e.param, function(err,result){
-					if (err) {
-						logger.push(err);
-						isError = true;
-						cb(new Error(err));
-					}
-					else {
-						if (result) {
-							var idx = insertUndoTaskLog(e.mongoose_model, "insert", result, null);
+						else {
+							logger.push("Sukses dimasukkan: "+result._id);
+							var idx = insertUndoTaskLog(e.mongoose_model, "delete", null, result._id);
+							dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
+							dt.tasks[nomor].undo_id = idx;
+							dt.save();
 							cb();
-						} else {
+						}	
+					});
+				} else if (e.act == "update") {
+					e.mongoose_model.findOneAndUpdate(e.param,e.data,function(err,result){
+						if (err) {
+							logger.push(err);
 							isError = true;
-							var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
-							logger.push(msg_err);
-							cb(new Error(msg_err));
+							cb(new Error(err));
 						}
-					}
-				});
-			} else {
-				logger.push("Aksi tidak ditemukan");
-				cb();
-			}
-		}, function(){
-			ModelTrans.findOne({_id: id_transaction}, function(err, x) {
-				if (isError) x.status = statusTransEnum.CANCELLED;
-				else x.status = statusTransEnum.DONE;
-				x.save();
+						else {
+							if (result) {
+								var idx = insertUndoTaskLog(e.mongoose_model, "update", result, result._id);
+								dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
+								dt.tasks[nomor].undo_id = idx;
+								dt.save();
+								cb();
+							} else {
+								isError = true;
+								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
+								logger.push(msg_err);
+								cb(new Error(msg_err));
+							}
+							
+						}
+					});
+				} else if (e.act == "delete") {
+					e.mongoose_model.findOneAndRemove(e.param, function(err,result){
+						if (err) {
+							logger.push(err);
+							isError = true;
+							cb(new Error(err));
+						}
+						else {
+							if (result) {
+								var idx = insertUndoTaskLog(e.mongoose_model, "insert", result, null);
+								dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
+								dt.tasks[nomor].undo_id = idx;
+								dt.save();
+								cb();
+							} else {
+								isError = true;
+								var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
+								logger.push(msg_err);
+								cb(new Error(msg_err));
+							}
+						}
+					});
+				} else {
+					logger.push("Aksi tidak ditemukan");
+					cb();
+				}
+			}, function(){
+				if (isError) dt.status = statusTransEnum.CANCELLED;
+				else dt.status = statusTransEnum.DONE;
+				dt.save();
 				ModelUndo.find({}, function(err,d){
-					console.log("Trans: "+JSON.stringify(x, null, 2));
+					console.log("Trans: "+JSON.stringify(dt, null, 2));
 					console.log("Undo: "+JSON.stringify(d, null, 2));
-					callback(isError, id_transaction, logger);
-				});
+					callback(isError, dt._id, logger);
+				}); 
 			});
 		});
 	};
