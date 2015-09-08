@@ -20,6 +20,16 @@ var query_insert = {
 	mongoose_model: User,
 };
 
+var query_insert2 = {
+	act: "insert",
+	data: {
+		_id: mongoose.Types.ObjectId(),
+		name: "Habibie3",
+		balance: 10000,
+	},
+	mongoose_model: User,
+};
+
 var query_update = {
 	act: "update",
 	param: { //ini parameter and, bukan OR
@@ -41,7 +51,7 @@ var query_delete = {
 /******* CONTOH QUERY ****************/
 
 /******* CONTOH PEMAKAIAN *************/
-transaction.apply([query_insert,query_update], function(isError, callback){	
+transaction.apply([query_insert, query_insert2, query_update], function(isError, callback){	
 	User.find({}, function(err, users) {
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));

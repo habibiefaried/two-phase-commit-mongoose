@@ -91,21 +91,27 @@ module.exports = function(mongoose, async) {
 					new e.dbase(e.data).save(function(err, result){
 						if (err) logger.push(err);
 						else logger.push("Insert rollback");
+						cb();
 					});
 				}
 				else if (e.act == "delete") {
 					e.dbase.findOneAndRemove({_id: e.ID},function(err,result){
 						if (err) logger.push(err);
 						else logger.push("Delete rollback");
+						cb();
 					});
 				}
 				else if (e.act == "update") {
 					logger.push("Update rollback");
+					cb();
 				}
 				else {
 					logger.push("[ERROR-ROLLBACK] Aksi kok tidak ditemukan");
+					cb();
 				}
 			}, function(){
+				data_trans.status = statusTransEnum.ROLLEDBACK;
+				data_trans.save();
 				callback(logger);
 			});
 		} else if (data_trans.status == statusTransEnum.INIT){
@@ -118,8 +124,6 @@ module.exports = function(mongoose, async) {
 	trans.apply = function(param, callback){
 		var logger = [];
 		var obj_transaction = {};
-		
-		//console.log(typeof param[1].data["$inc"]);
 
 		createInitTransaction("No Information", param, function(err, dt){
 			var nomor = -1;
@@ -196,12 +200,11 @@ module.exports = function(mongoose, async) {
 				else dt.status = statusTransEnum.DONE;
 				dt.save();
 
-				console.log("Trans: "+JSON.stringify(dt, null, 2));
-
 				LiveRollback(dt, function(rollback) {
 					var hasil = {};
 					hasil.normal = logger;
 					hasil.rollback = rollback;
+					console.log("Trans: "+JSON.stringify(dt, null, 2));
 					callback(isError, hasil); 
 				});
 			});
