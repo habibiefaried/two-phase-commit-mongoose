@@ -88,32 +88,32 @@ module.exports = function(mongoose, async) {
 			async.forEachSeries(data_trans.undo_tasks, function(e,cb){
 				if (e.act == "insert") {
 					new e.dbase(e.data).save(function(err, result){
-						if (err) logger.push(err);
-						else logger.push("Delete rollback -> Inserting");
+						if (err) logger.push({info:"[ERROR-INSERT]", data:err});
+						else logger.push({info:"Delete rollback -> Inserting",data:result});
 						cb();
 					});
 				}
 				else if (e.act == "delete") {
 					e.dbase.findOneAndRemove({_id: e.ID},function(err,result){
-						if (err) logger.push(err);
-						else logger.push("Insert rollback -> Deleting "+e.ID);
+						if (err) logger.push({info:"[ERROR-DELETE]", data:err});
+						else logger.push({info:"Insert rollback -> Deleting",data:result});
 						cb();
 					});
 				}
 				else if (e.act == "update") {
 					e.dbase.findOneAndUpdate({_id: e.ID}, e.data, function(err,result){
-						if (err) logger.push(err);
-						else logger.push("Update rollback -> Updating");
+						if (err) logger.push({info:"[ERROR-UPDATE]", data:err});
+						else logger.push({info:"Update rollback -> Updating",data:result});
 						cb();
 					});
 				} else if (e.act == "update_num") {
 					e.dbase.findOneAndUpdate({_id: e.ID}, {$inc: e.data}, function(err,result){
-						if (err) logger.push(err);
-						else logger.push("Update increment rollback -> Updating");
+						if (err) logger.push({info:"[ERROR-UPDATENUM]", data:err});
+						else logger.push({info:"Update increment rollback -> Updating",data:result});
 						cb();
 					});
 				} else {
-					logger.push("[ERROR-ROLLBACK] Aksi kok tidak ditemukan");
+					logger.push({info:"[ERROR-ROLLBACK] Aksi kok tidak ditemukan", data:null});
 					cb();
 				}
 			}, function(){
@@ -150,12 +150,12 @@ module.exports = function(mongoose, async) {
 						if (err) {
 							dt.tasks[nomor].status = statusTaskEnum.ERROR;
 							dt.save();
-							logger.push(err);
+							logger.push({info:"[ERROR-INSERT]",data:err});
 							isError = true;
 							cb(new Error(err));
 						}
 						else {
-							logger.push("Sukses dimasukkan: "+result._id);
+							logger.push({info:"[SUCCESS-INSERT]",data:result});
 							insertUndoTaskLog(dt, nomor, e.mongoose_model, "delete", null, result._id);
 							cb();
 						}	
@@ -169,15 +169,15 @@ module.exports = function(mongoose, async) {
 						}
 						else {
 							if (result) {
-								logger.push("Update berhasil dijalankan"+result);
+								logger.push({info:"[SUCCESS-UPDATE]",data:result});
 								insertUndoTaskLog(dt, nomor, e.mongoose_model, "update", result, result._id);
 								cb();
 							} else {
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
 								dt.save();
 								isError = true;
-								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
-								logger.push(msg_err);
+								var msg_err = "[ERROR-UPDATE]";
+								logger.push({info:msg_err,data:null});
 								cb(new Error(msg_err));
 							}
 							
@@ -186,20 +186,20 @@ module.exports = function(mongoose, async) {
 				} else if (e.act == "update_num") {
 					e.mongoose_model.findOneAndUpdate(e.param,{$inc: e.data},function(err,result){
 						if (err) {
-							logger.push(err);
+							logger.push({info:"[ERROR-UPDATENUM]",data:err});
 							isError = true;
 							cb(new Error(err));
 						} else {
 							if (result) {
-								logger.push("Update increment berhasil dijalankan"+result);
+								logger.push({info:"[SUCCESS-UPDATENUM]",data:result});
 								insertUndoTaskLog(dt, nomor, e.mongoose_model, "update_num", negateData(e.data), result._id);
 								cb();
 							} else {
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
 								dt.save();
 								isError = true;
-								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
-								logger.push(msg_err);
+								var msg_err = "[ERROR-UPDATENUM]";
+								logger.push({info:msg_err,data:null});
 								cb(new Error(msg_err));
 							}
 						}
@@ -208,27 +208,27 @@ module.exports = function(mongoose, async) {
 				else if (e.act == "delete") {
 					e.mongoose_model.findOneAndRemove(e.param, function(err,result){
 						if (err) {
-							logger.push(err);
+							logger.push({info:"[ERROR-DELETE]",data:err});
 							isError = true;
 							cb(new Error(err));
 						}
 						else {
 							if (result) {
-								logger.push("Delete berhasil dijalankan"+result);
+								logger.push({info:"[SUCCESS-DELETE]",data:result});
 								insertUndoTaskLog(dt, nomor, e.mongoose_model, "insert", result, null);
 								cb();
 							} else {
 								isError = true;
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
 								dt.save();
-								var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
-								logger.push(msg_err);
+								var msg_err = "[ERROR-DELETE]";
+								logger.push({info:msg_err,data:null});
 								cb(new Error(msg_err));
 							}
 						}
 					});
 				} else {
-					logger.push("Aksi tidak ditemukan");
+					logger.push({info:"Aksi tidak ditemukan",data:null});
 					cb();
 				}
 			}, function(){
