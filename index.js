@@ -62,7 +62,7 @@ var query_update_num = {
 /******* CONTOH QUERY ****************/
 
 /******* CONTOH PEMAKAIAN *************/
-transaction.apply([query_update_num], function(isError, callback){	
+transaction.apply([query_update_num, query_delete], function(isError, callback){	
 	User.find({}, function(err, users) {
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));

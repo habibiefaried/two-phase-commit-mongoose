@@ -106,8 +106,13 @@ module.exports = function(mongoose, async) {
 						else logger.push("Update rollback -> Updating");
 						cb();
 					});
-				}
-				else {
+				} else if (e.act == "update_num") {
+					e.dbase.findOneAndUpdate({_id: e.ID}, {$inc: e.data}, function(err,result){
+						if (err) logger.push(err);
+						else logger.push("Update increment rollback -> Updating");
+						cb();
+					});
+				} else {
 					logger.push("[ERROR-ROLLBACK] Aksi kok tidak ditemukan");
 					cb();
 				}
@@ -186,7 +191,7 @@ module.exports = function(mongoose, async) {
 							cb(new Error(err));
 						} else {
 							if (result) {
-								logger.push("Update berhasil dijalankan"+result);
+								logger.push("Update increment berhasil dijalankan"+result);
 								insertUndoTaskLog(dt, nomor, e.mongoose_model, "update_num", negateData(e.data), result._id);
 								cb();
 							} else {
