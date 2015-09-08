@@ -19,43 +19,37 @@ module.exports = function(mongoose, async) {
 	  _id: mongoose.Schema.ObjectId,
 	  tasks: [{
 	  	status: Number,
-	  	undo_id: mongoose.Schema.ObjectId, //mengacu pada undo_task_log
 	  	dbase: Object, //mongoose_model
 	  	act: String, //update, delete, insert
 	  	data: Object, //data khusus insert, update
 	  	param: Object,
 	  }],
-	  
+	  undo_tasks : [{
+	  	_id: mongoose.Schema.ObjectId,
+		dbase: Object, //collections
+		act: String,
+		data: Object, //khusus delete bernilai null
+		ID: mongoose.Schema.ObjectId,
+	  }],
 	  status: Number,
 	  information: String, //informasi apapun, bisa null
 	  created_at: Date,
 	  updated_at: Date
 	});
-
 	var ModelTrans = mongoose.model('transaction_2pc', transaction_2pc);
-
-	var undo_task_log = new mongoose.Schema({
-		_id: mongoose.Schema.ObjectId,
-		dbase: Object, //collections
-		act: String,
-		data: Object, //khusus delete bernilai null
-		ID: mongoose.Schema.ObjectId,
-	});
-	var ModelUndo = mongoose.model('undo_task_log', undo_task_log);
-
+	
 	var trans = {};
 
-	function insertUndoTaskLog(mongoose_model, act, data, information_id){
-		
+	function insertUndoTaskLog(dt, nomor, mongoose_model, act, data, information_id){
 		var obj = {};
 		obj._id = mongoose.Types.ObjectId();
 		obj.dbase = mongoose_model;
 		obj.act = act;
 		obj.data = data;
 		obj.ID = information_id;
-		new ModelUndo(obj).save(); 
-		return obj._id;
-		
+		dt.undo_tasks.push(obj);
+		dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
+		dt.save();
 	}
 
 	function createInitTransaction(information, param, callback) {
@@ -65,6 +59,7 @@ module.exports = function(mongoose, async) {
 		//obj_transaction._id = mongoose.Types.ObjectId();
 		obj_transaction._id = new mongoose.Types.ObjectId();
 		obj_transaction.tasks = [];
+		obj_transaction.undo_tasks = [];
 		obj_transaction.status = statusTransEnum.PENDING;
 		obj_transaction.information = information;
 		obj_transaction.created_at = new Date();
@@ -73,7 +68,6 @@ module.exports = function(mongoose, async) {
 		for (var i=0; i<param.length; i++){
 			var task = {};
 			task.status = statusTaskEnum.INIT;
-			task.undo_id = null;
 			task.dbase = param[i].mongoose_model;
 			task.act = param[i].act;
 			task.data = param[i].data;
@@ -121,7 +115,6 @@ module.exports = function(mongoose, async) {
 					new e.mongoose_model(e.data).save(function(err, result){
 						if (err) {
 							dt.tasks[nomor].status = statusTaskEnum.ERROR;
-							dt.tasks[nomor].undo_id = idx;
 							dt.save();
 							logger.push(err);
 							isError = true;
@@ -129,10 +122,7 @@ module.exports = function(mongoose, async) {
 						}
 						else {
 							logger.push("Sukses dimasukkan: "+result._id);
-							var idx = insertUndoTaskLog(e.mongoose_model, "delete", null, result._id);
-							dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
-							dt.tasks[nomor].undo_id = idx;
-							dt.save();
+							insertUndoTaskLog(dt, nomor, e.mongoose_model, "delete", null, result._id);
 							cb();
 						}	
 					});
@@ -145,15 +135,11 @@ module.exports = function(mongoose, async) {
 						}
 						else {
 							if (result) {
-								var idx = insertUndoTaskLog(e.mongoose_model, "update", result, result._id);
-								dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
-								dt.tasks[nomor].undo_id = idx;
-								dt.save();
 								logger.push("Update berhasil dijalankan"+result);
+								insertUndoTaskLog(dt, nomor, e.mongoose_model, "update", result, result._id);
 								cb();
 							} else {
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
-								dt.tasks[nomor].undo_id = idx;
 								dt.save();
 								isError = true;
 								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
@@ -172,15 +158,12 @@ module.exports = function(mongoose, async) {
 						}
 						else {
 							if (result) {
-								var idx = insertUndoTaskLog(e.mongoose_model, "insert", result, null);
-								dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
-								dt.tasks[nomor].undo_id = idx;
-								dt.save();
+								logger.push("Delete berhasil dijalankan"+result);
+								insertUndoTaskLog(dt, nomor, e.mongoose_model, "insert", result, null);
 								cb();
 							} else {
 								isError = true;
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
-								dt.tasks[nomor].undo_id = idx;
 								dt.save();
 								var msg_err = "[ERROR] Tidak ada record yang akan dihapus";
 								logger.push(msg_err);
