@@ -48,15 +48,26 @@ var query_delete = {
 	mongoose_model: User,
 };
 
+var query_update_num = {
+	//pilih field yang akan diincrement pada "data"
+	act: "update_num",
+	param: {
+		name: "Habibie2",
+	},
+	data : {
+		balance: 100, 
+	},
+	mongoose_model: User,
+};
 /******* CONTOH QUERY ****************/
 
 /******* CONTOH PEMAKAIAN *************/
-transaction.apply([query_insert, query_insert2, query_update, query_update], function(isError, callback){	
+transaction.apply([query_update_num], function(isError, callback){	
 	User.find({}, function(err, users) {
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));
 	  	console.log("RESP: "+JSON.stringify(callback, null, 2));
-		mongoose.connection.db.dropDatabase();
+		//mongoose.connection.db.dropDatabase();
 		mongoose.connection.db.close();
 	});
 });

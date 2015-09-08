@@ -47,7 +47,7 @@ module.exports = function(mongoose, async) {
 		obj.act = act;
 		obj.data = data;
 		obj.ID = information_id;
-		dt.undo_tasks.push(obj);
+		dt.undo_tasks.unshift(obj);
 		dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
 		dt.save();
 	}
@@ -56,7 +56,6 @@ module.exports = function(mongoose, async) {
 		//@return transaction_id
 		//masih init
 		var obj_transaction = {};
-		//obj_transaction._id = mongoose.Types.ObjectId();
 		obj_transaction._id = new mongoose.Types.ObjectId();
 		obj_transaction.tasks = [];
 		obj_transaction.undo_tasks = [];
@@ -90,20 +89,23 @@ module.exports = function(mongoose, async) {
 				if (e.act == "insert") {
 					new e.dbase(e.data).save(function(err, result){
 						if (err) logger.push(err);
-						else logger.push("Insert rollback");
+						else logger.push("Delete rollback -> Inserting");
 						cb();
 					});
 				}
 				else if (e.act == "delete") {
 					e.dbase.findOneAndRemove({_id: e.ID},function(err,result){
 						if (err) logger.push(err);
-						else logger.push("Delete rollback");
+						else logger.push("Insert rollback -> Deleting "+e.ID);
 						cb();
 					});
 				}
 				else if (e.act == "update") {
-					logger.push("Update rollback");
-					cb();
+					e.dbase.findOneAndUpdate({_id: e.ID}, e.data, function(err,result){
+						if (err) logger.push(err);
+						else logger.push("Update rollback -> Updating");
+						cb();
+					});
 				}
 				else {
 					logger.push("[ERROR-ROLLBACK] Aksi kok tidak ditemukan");
@@ -115,10 +117,17 @@ module.exports = function(mongoose, async) {
 				callback(logger);
 			});
 		} else if (data_trans.status == statusTransEnum.INIT){
-			callback("INIT-TERUSIN")
+			callback("INIT-TERUSIN");
 		} else {
 			callback("SUCCEED or ROLLEDBACK");
 		}
+	}
+
+	function negateData(obj){
+		for (var attr in obj){
+			obj[attr] = 0 - obj[attr];
+		}
+		return obj;
 	}
 
 	trans.apply = function(param, callback){
@@ -169,7 +178,29 @@ module.exports = function(mongoose, async) {
 							
 						}
 					});
-				} else if (e.act == "delete") {
+				} else if (e.act == "update_num") {
+					e.mongoose_model.findOneAndUpdate(e.param,{$inc: e.data},function(err,result){
+						if (err) {
+							logger.push(err);
+							isError = true;
+							cb(new Error(err));
+						} else {
+							if (result) {
+								logger.push("Update berhasil dijalankan"+result);
+								insertUndoTaskLog(dt, nomor, e.mongoose_model, "update_num", negateData(e.data), result._id);
+								cb();
+							} else {
+								dt.tasks[nomor].status = statusTaskEnum.ERROR;
+								dt.save();
+								isError = true;
+								var msg_err = "[ERROR] Tidak ada record yang akan diupdate";
+								logger.push(msg_err);
+								cb(new Error(msg_err));
+							}
+						}
+					});
+				}
+				else if (e.act == "delete") {
 					e.mongoose_model.findOneAndRemove(e.param, function(err,result){
 						if (err) {
 							logger.push(err);
@@ -204,7 +235,7 @@ module.exports = function(mongoose, async) {
 					var hasil = {};
 					hasil.normal = logger;
 					hasil.rollback = rollback;
-					console.log("Trans: "+JSON.stringify(dt, null, 2));
+					//console.log("Trans: "+JSON.stringify(dt, null, 2));
 					callback(isError, hasil); 
 				});
 			});
