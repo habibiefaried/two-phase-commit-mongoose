@@ -256,7 +256,6 @@ module.exports = function(mongoose, async) {
 					var hasil = {};
 					hasil.normal = logger;
 					hasil.rollback = rollback;
-					//console.log("Trans: "+JSON.stringify(dt, null, 2));
 					callback(isError, hasil); 
 				});
 			});
