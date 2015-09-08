@@ -85,13 +85,19 @@ module.exports = function(mongoose, async) {
 	function LiveRollback(data_trans, callback) {
 		//data transaksi setelah transaksi dijalankan
 		if (data_trans.status == statusTransEnum.CANCELLED) {
-			async.forEachSeries(data_trans.tasks, function(e,cb){
-
+			async.forEachSeries(data_trans.undo_tasks, function(e,cb){
+				if (e.act == "insert") console.log("Insert rollback");
+				else if (e.act == "delete") {
+					e.dbase.findOneAndRemove({_id: e.ID},function(err,result){
+						if (err) console.log(err);
+						else console.log("Delete rollback");
+					});
+				}
+				else if (e.act == "update") console.log("Update rollback");
+				else console.log("?");
 			}, function(){
-
+				callback("CANCELLED-ROLLBACK");
 			});
-			callback("CANCELLED-ROLLBACK");
-
 		} else if (data_trans.status == statusTransEnum.INIT){
 			callback("INIT-TERUSIN")
 		} else {
@@ -179,6 +185,7 @@ module.exports = function(mongoose, async) {
 				if (isError) dt.status = statusTransEnum.CANCELLED;
 				else dt.status = statusTransEnum.DONE;
 				dt.save();
+
 				console.log("Trans: "+JSON.stringify(dt, null, 2));
 
 				LiveRollback(dt, function(rollback) {
