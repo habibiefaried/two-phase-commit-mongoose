@@ -25,6 +25,7 @@ module.exports = function(mongoose, async) {
 	  	data: Object, //data khusus insert, update
 	  	param: Object,
 	  }],
+	  
 	  status: Number,
 	  information: String, //informasi apapun, bisa null
 	  created_at: Date,
@@ -87,13 +88,29 @@ module.exports = function(mongoose, async) {
 		})
 	}
 
-	function LiveRollback(data_trans) {
-		//data transaksi setelah insert
+	function LiveRollback(data_trans, callback) {
+		//data transaksi setelah transaksi dijalankan
+		if (data_trans.status == statusTransEnum.CANCELLED) {
+			async.forEachSeries(data_trans.tasks, function(e,cb){
+
+			}, function(){
+
+			});
+			callback("CANCELLED-ROLLBACK");
+
+		} else if (data_trans.status == statusTransEnum.INIT){
+			callback("INIT-TERUSIN")
+		} else {
+			callback("SUCCEED or ROLLEDBACK");
+		}
 	}
 
 	trans.apply = function(param, callback){
 		var logger = [];
 		var obj_transaction = {};
+		
+		//console.log(typeof param[1].data["$inc"]);
+
 		createInitTransaction("No Information", param, function(err, dt){
 			var nomor = -1;
 			var isError = false; //awalnya false
@@ -132,6 +149,7 @@ module.exports = function(mongoose, async) {
 								dt.tasks[nomor].status = statusTaskEnum.SUCCESS;
 								dt.tasks[nomor].undo_id = idx;
 								dt.save();
+								logger.push("Update berhasil dijalankan"+result);
 								cb();
 							} else {
 								dt.tasks[nomor].status = statusTaskEnum.ERROR;
@@ -180,15 +198,12 @@ module.exports = function(mongoose, async) {
 				dt.save();
 				console.log("Trans: "+JSON.stringify(dt, null, 2));
 
-				var hasil = {};
-				hasil.normal = logger;
-
-				if (!isError) hasil.rollback = "";
-				else {
-
-				}
-				
-				callback(isError, hasil); 
+				LiveRollback(dt, function(rollback) {
+					var hasil = {};
+					hasil.normal = logger;
+					hasil.rollback = rollback;
+					callback(isError, hasil); 
+				});
 			});
 		});
 	};
