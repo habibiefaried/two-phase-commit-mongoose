@@ -55,14 +55,14 @@ var query_update_num = {
 		name: "Habibie2",
 	},
 	data : {
-		balance: 100, 
+		balance: -100, 
 	},
 	mongoose_model: User,
 };
 /******* CONTOH QUERY ****************/
 
 /******* CONTOH PEMAKAIAN *************/
-transaction.apply([query_update_num, query_delete], function(isError, callback){	
+transaction.apply([query_insert2, query_update_num], function(isError, callback){	
 	User.find({}, function(err, users) {
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));

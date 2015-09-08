@@ -20,14 +20,14 @@ module.exports = function(mongoose, async) {
 	  tasks: [{
 	  	status: Number,
 	  	dbase: Object, //mongoose_model
-	  	act: String, //update, delete, insert
+	  	act: String, //update, delete, insert, update-num
 	  	data: Object, //data khusus insert, update
 	  	param: Object,
 	  }],
 	  undo_tasks : [{
 	  	_id: mongoose.Schema.ObjectId,
 		dbase: Object, //collections
-		act: String,
+		act: String, //action update, delete, insert, update-num
 		data: Object, //khusus delete bernilai null
 		ID: mongoose.Schema.ObjectId,
 	  }],
@@ -41,6 +41,8 @@ module.exports = function(mongoose, async) {
 	var trans = {};
 
 	function insertUndoTaskLog(dt, nomor, mongoose_model, act, data, information_id){
+		//memasukkan undo_task kedalam transaction
+		//berguna ketika rollback
 		var obj = {};
 		obj._id = mongoose.Types.ObjectId();
 		obj.dbase = mongoose_model;
@@ -53,8 +55,7 @@ module.exports = function(mongoose, async) {
 	}
 
 	function createInitTransaction(information, param, callback) {
-		//@return transaction_id
-		//masih init
+		//membuat transaksi, mengembalikan instance transaction
 		var obj_transaction = {};
 		obj_transaction._id = new mongoose.Types.ObjectId();
 		obj_transaction.tasks = [];
@@ -83,6 +84,7 @@ module.exports = function(mongoose, async) {
 
 	function LiveRollback(data_trans, callback) {
 		//data transaksi setelah transaksi dijalankan
+		//lakukan rollback jika transaksiknya cancel
 		var logger = [];
 		if (data_trans.status == statusTransEnum.CANCELLED) {
 			async.forEachSeries(data_trans.undo_tasks, function(e,cb){
@@ -119,16 +121,30 @@ module.exports = function(mongoose, async) {
 			}, function(){
 				data_trans.status = statusTransEnum.ROLLEDBACK;
 				data_trans.save();
+				logger.push({info:"ROLLEDBACK",data:null});
 				callback(logger);
 			});
-		} else if (data_trans.status == statusTransEnum.INIT){
-			callback("INIT-TERUSIN");
-		} else {
-			callback("SUCCEED or ROLLEDBACK");
+		}
+		else if (data_trans.status == statusTransEnum.INIT) {
+			logger.push({info:"INIT-TERUSIN",data:null});
+			callback(logger);
+		}
+		else if (data_trans.status == statusTransEnum.DONE) {
+			logger.push({info:"SUCCESS",data:null});
+			callback(logger);
+		}
+		else if (data_trans.status = statusTransEnum.ROLLEDBACK) {
+			logger.push({info:"ROLLEDBACK",data:null});
+			callback(logger);
+		}
+		else {
+			logger.push({info:"STATUS NOT FOUND",data:null});
+			callback(logger);
 		}
 	}
 
 	function negateData(obj){
+		//melakukan negasi dari increment yang sudah dilakukan
 		for (var attr in obj){
 			obj[attr] = 0 - obj[attr];
 		}
