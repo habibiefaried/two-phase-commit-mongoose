@@ -1,5 +1,7 @@
 "use strict";
 
+//No Error message in callback
+
 module.exports = function(mongoose, async) {
 	var statusTransEnum = Object.freeze({
 		PENDING: 1,
@@ -103,7 +105,7 @@ module.exports = function(mongoose, async) {
 					});
 				}
 				else if (e.act == "update") {
-					e.dbase.findOneAndUpdate({_id: e.ID}, {$set:e.data}, function(err,result){
+					e.dbase.findOneAndUpdate({_id: e.ID}, {$set: e.data}, function(err,result){
 						if (err) logger.push({info:"[ERROR-UPDATE]", data:err});
 						else logger.push({info:"Update rollback -> Updating",data:result});
 						cb();
@@ -253,10 +255,8 @@ module.exports = function(mongoose, async) {
 				dt.save();
 
 				LiveRollback(dt, function(rollback) {
-					var hasil = {};
-					hasil.normal = logger;
-					hasil.rollback = rollback;
-					callback(isError, hasil); 
+					if (isError) callback(true, rollback);
+					else callback(false, logger); 
 				});
 			});
 		});

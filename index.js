@@ -67,7 +67,7 @@ transaction.apply([query_insert2, query_update_num], function(isError, callback)
 		if (err) throw err;
 	  	else console.log("User: "+JSON.stringify(users, null, 2));
 	  	console.log("RESP: "+JSON.stringify(callback, null, 2));
-		//mongoose.connection.db.dropDatabase();
+		mongoose.connection.db.dropDatabase();
 		mongoose.connection.db.close();
 	});
 });
